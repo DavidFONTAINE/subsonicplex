@@ -30,13 +30,13 @@ def Start():
     HTTP.CacheTime = 600
 
     # Initialize the plugin
-    Plugin.AddViewGroup("List", viewMode = "List", mediaType = "items")
-    Plugin.AddViewGroup("InfoList", viewMode = "InfoList", mediaType = "items")
-    Plugin.AddViewGroup("Album", viewMode = "Songs", mediaType = "items")
+    Plugin.AddViewGroup("List", viewMode = "List", mediaType = "albums")
+    Plugin.AddViewGroup("InfoList", viewMode = "InfoList", mediaType = "albums")
+    Plugin.AddViewGroup("Album", viewMode = "Songs", mediaType = "tracks")
     # Setup the artwork associated with the plugin
     ObjectContainer.art = R(ART)
     ObjectContainer.title1 = NAME
-    ObjectContainer.view_group = "Album"
+    ObjectContainer.view_group = "InfoList"
 
     DirectoryObject.thumb = R(ICON)
     DirectoryObject.art = R(ART)
@@ -48,15 +48,11 @@ def Start():
 def MainMenu():
 
     oc = ObjectContainer(title1 = NAME)
-    #oc.add(InputDirectoryObject(key = Callback(Search), title = "Tracks Search...", prompt = "Search for Tracks", thumb = R(ICON_SEARCH)))
-    #oc.add(InputDirectoryObject(key = Callback(UsersSearch), title = "Users Search...", prompt = "Search for Users", thumb = R(ICON_SEARCH)))
-    #oc.add(InputDirectoryObject(key = Callback(GroupsSearch), title = "Groups Search...", prompt = "Search for Groups", thumb = R(ICON_SEARCH)))
     oc.add(DirectoryObject(title=L("List by Artists"), key = Callback(getArtists)))
     oc.add(DirectoryObject(title=L("List by Index"), key = Callback(getIndexes)))
     oc.add(DirectoryObject(title=L("Newest"), key = Callback(getAlbumList, ypeL="newest")))
     oc.add(DirectoryObject(title=L("Playlist"), key = Callback(getPlaylists)))
-    oc.add(DirectoryObject(title=L("Random Songs"), key = Callback(getRandomSongs)))
-    oc.add(DirectoryObject(title=L("Test"), key = Callback(getRandomSongs)))
+    oc.add(DirectoryObject(title=L("Random Songs"), tagline="album", key = Callback(getRandomSongs)))
     oc.add(PrefsObject(title="Preferences"))
     return oc
 
@@ -102,7 +98,7 @@ def getArtist(artistID):
     url1        = makeURL("getCoverArt.view", id=parent)
     thumb = Callback(Thumb, url=url1)
     #oc.add(DirectoryObject(key=key, title=title, duration=duration, thumb=thumb))
-    oc.add(DirectoryObject(key=key,title=title, duration=duration, thumb=thumb))
+    oc.add(DirectoryObject(key=key,title=title, tagline="album",duration=duration, thumb=thumb))
   return oc 
 
 #create a menu with all songs for selected album
@@ -163,18 +159,21 @@ def getart(albumID):
 @route('/music/subsonicPlex/getAlbumList/{ypeL}')
 def getAlbumList(ypeL):
   element = XML.ElementFromURL(makeURL("getAlbumList.view", type=ypeL), cacheTime=CACHE_INTERVAL)
-  oc = ObjectContainer(title2="Newest", view_group = "Album")
+  oc = ObjectContainer(title2="Newest", view_group = "InfoList")
   oc.view_group = "Album" 
   for item in searchElementTree(element, ALBUM):
+    tagline = "album"
     cover = item.get("coverArt")
     title = item.get("album")
+    if not title:
+       tagline = ""
     artist = item.get("artist")
     id = item.get("id")
     parent = item.get("parent")
     key = '/music/subsonicPlex/getMusicDirectory/' + id
     url1 = makeURL("getCoverArt.view", id=id)
     thumb = Callback(Thumb, url=url1)
-    oc.add(DirectoryObject(title=artist+" - "+title, key = '/music/subsonicPlex/getMusicDirectory/' + id, thumb=thumb))
+    oc.add(DirectoryObject(title=artist+" - "+title, tagline=tagline, key = '/music/subsonicPlex/getMusicDirectory/' + id, thumb=thumb))
   return oc 
 
 #create a menu with all songs for selected album
@@ -283,7 +282,7 @@ def getAlbum1(albumID):
 def getIndexes():
   if not serverStatus():
    return ObjectContainer(header="Can't Connect", message="Check that your username, password and server address are entered correctly.")
-  oc = ObjectContainer(title1="Index")
+  oc = ObjectContainer(title1="Index", view_group = "InfoList")
   element = XML.ElementFromURL(makeURL("getIndexes.view"), cacheTime=CACHE_INTERVAL)
   #add all artists
  
@@ -318,7 +317,7 @@ def getPlaylists():
     comment     = item.get("comment")
     key        = '/music/subsonicPlex/getPlaylist/' + id
     rating_key  = id
-    oc.add(DirectoryObject(title=title, key=key))
+    oc.add(DirectoryObject(title=title, tagline="album", key=key))
   return oc
 
 #create a menu with all songs for selected album
@@ -435,18 +434,23 @@ def getMusicDirectory(artistID):
 	
   element = XML.ElementFromURL(makeURL("getMusicDirectory.view", id=artistID), cacheTime=CACHE_INTERVAL)
   artistName = element.find(DIRECTORY).get("name")
-  oc = ObjectContainer(title1=artistName)
+  oc = ObjectContainer(title1=artistName, view_group = "InfoList")
   for item in searchElementTree(element, CHILD):
+    tagline = "album"
     id          = item.get("id")
     title       = item.get("album")
+    index       = item.get("track")
+    if index:
+        index = int(index)
     if not title:
         title      = item.get("artist")
+        tagline = ""
     rating_key  = id
     isDir       = item.get("isDir")
     url1        = makeURL("getCoverArt.view", id=id)
     url         = makeURL("stream.view", id=id, format=container)
     if isDir == 'true':
-      oc.add(DirectoryObject(title=title, key= '/music/subsonicPlex/getMusicDirectory/' + id, thumb = Callback(Thumb, url=url1)))
+      oc.add(DirectoryObject(title=title, key= '/music/subsonicPlex/getMusicDirectory/' + id, tagline = tagline,thumb = Callback(Thumb, url=url1)))
     elif isDir == 'false': 
       duration = item.get("duration")
       if duration:
@@ -457,13 +461,12 @@ def getMusicDirectory(artistID):
       artist      = item.get("artist")
       album       = item.get("album")
       oc.title1   = album	
-      oc.add(TrackObject(title = title, thumb = Callback(Thumb, url=url1),artist=title,album=album,duration = duration,key = '/music/subsonicPlex/getSong/' + id,
+      oc.add(TrackObject(title = title, thumb = Callback(Thumb, url=url1),index = index, artist=artist,album=album,duration = duration,key = '/music/subsonicPlex/getSong/' + id,
       rating_key=rating_key,
       items = [
       MediaObject(
       container = 'mp3',
       audio_codec = audio_codec,
-      audio_channels = 2,
       parts = [
       PartObject(key = url, duration=duration)
       ]
