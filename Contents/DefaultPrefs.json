@@ -1,0 +1,38 @@
+[
+   
+	{
+    	"id": "server",
+      "type": "text",
+      "label": "Server URL",
+      "default": "http://127.0.0.1:4040/"
+	},
+  {
+    	"id": "username",
+      "type": "text",
+      "label": "Username",
+      "default": ""
+	},
+  {
+    	"id": "password",
+      "type": "text",
+      "label": "Password",
+      "default": "",
+      "option": "hidden"
+	},
+  {
+    	"id": "random",
+      "type": "text",
+      "label": "Random number",
+      "default": "100" 
+        },
+  {
+      "id": "format",
+      "type": "enum",
+      "label": "Audio Format",
+      "default": "mp3",
+      "values": [
+              "mp3",
+              "aac"
+      ]
+        }
+]
